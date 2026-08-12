@@ -9,7 +9,6 @@ const supabase = createBrowserSupabaseClient();
 type Group = { id: string; name: string };
 type Team = { id: string; name: string; group_id: string | null; manual_rank_override: number | null };
 type Match = { id: string; phase: string; group_id: string | null; team1_id: string | null; team2_id: string | null; team1_score: number | null; team2_score: number | null; scheduled_at: string | null; table_number: string | null; status: string };
-
 type BusyAction = string | null;
 
 export default function AdminPage() {
@@ -21,6 +20,9 @@ export default function AdminPage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [matchPhase, setMatchPhase] = useState("group");
+  const [matchGroupId, setMatchGroupId] = useState("");
+  const [team1Id, setTeam1Id] = useState("");
+  const [team2Id, setTeam2Id] = useState("");
   const [busyAction, setBusyAction] = useState<BusyAction>(null);
 
   async function loadData() {
@@ -42,29 +44,22 @@ export default function AdminPage() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
-      if (data.session) loadData();
-      else setLoading(false);
+      if (data.session) loadData(); else setLoading(false);
     });
-
     const { data: listener } = supabase.auth.onAuthStateChange((event, nextSession) => {
       setSession(nextSession);
       if (event === "SIGNED_IN" && nextSession) loadData();
       if (event === "SIGNED_OUT") {
-        setTournament(null);
-        setGroups([]);
-        setTeams([]);
-        setMatches([]);
+        setTournament(null); setGroups([]); setTeams([]); setMatches([]);
       }
     });
-
     return () => listener.subscription.unsubscribe();
   }, []);
 
   async function login(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setMessage(""); setBusyAction("login");
     const form = new FormData(event.currentTarget);
-    const email = String(form.get("email")); const password = String(form.get("password"));
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({ email: String(form.get("email")), password: String(form.get("password")) });
     setMessage(error ? error.message : "Eingeloggt.");
     setBusyAction(null);
   }
@@ -76,13 +71,7 @@ export default function AdminPage() {
     const groupId = String(form.get("group_id"));
     if (!name || !groupId) { setMessage("Bitte Teamname und Gruppe ausfüllen."); return; }
     setBusyAction("add-team");
-
-    const { data, error } = await supabase
-      .from("teams")
-      .insert({ tournament_id: tournament.id, name, group_id: groupId })
-      .select("id,name,group_id,manual_rank_override")
-      .single();
-
+    const { data, error } = await supabase.from("teams").insert({ tournament_id: tournament.id, name, group_id: groupId }).select("id,name,group_id,manual_rank_override").single();
     setMessage(error ? error.message : "Team gespeichert.");
     if (!error && data) {
       setTeams((current) => [...current, data].sort((a, b) => a.name.localeCompare(b.name, "de")));
@@ -93,13 +82,9 @@ export default function AdminPage() {
 
   async function deleteTeam(team: Team) {
     const isUsed = matches.some((match) => match.team1_id === team.id || match.team2_id === team.id);
-    if (isUsed) {
-      setMessage(`Team \"${team.name}\" wird noch in einem Spiel verwendet. Lösche zuerst dieses Spiel.`);
-      return;
-    }
+    if (isUsed) { setMessage(`Team \"${team.name}\" wird noch in einem Spiel verwendet. Lösche zuerst dieses Spiel.`); return; }
     if (!window.confirm(`Team \"${team.name}\" wirklich löschen?`)) return;
     setBusyAction(`delete-team-${team.id}`);
-
     const { error } = await supabase.from("teams").delete().eq("id", team.id);
     setMessage(error ? error.message : "Team gelöscht.");
     if (!error) setTeams((current) => current.filter((item) => item.id !== team.id));
@@ -110,39 +95,39 @@ export default function AdminPage() {
     event.preventDefault(); if (!tournament) return;
     const form = new FormData(event.currentTarget);
     const phase = String(form.get("phase"));
-    const groupId = String(form.get("group_id"));
+    const groupId = String(form.get("group_id") ?? "");
     const scheduled = String(form.get("scheduled_at"));
     const team1 = String(form.get("team1_id"));
     const team2 = String(form.get("team2_id"));
     const tableNumber = String(form.get("table_number")).trim();
 
     if (!phase || !team1 || !team2 || !scheduled || !tableNumber || (phase === "group" && !groupId)) {
-      setMessage("Bitte alle Pflichtfelder des Spiels ausfüllen.");
-      return;
+      setMessage("Bitte alle Pflichtfelder des Spiels ausfüllen."); return;
     }
     if (team1 === team2) { setMessage("Ein Team kann nicht gegen sich selbst spielen."); return; }
-    setBusyAction("add-match");
+    if (phase === "group") {
+      const team1Group = teams.find((team) => team.id === team1)?.group_id;
+      const team2Group = teams.find((team) => team.id === team2)?.group_id;
+      if (team1Group !== groupId || team2Group !== groupId) { setMessage("Beide Teams müssen zur gewählten Gruppe gehören."); return; }
+    }
 
-    const { data, error } = await supabase
-      .from("matches")
-      .insert({
-        tournament_id: tournament.id,
-        phase,
-        group_id: phase === "group" ? groupId : null,
-        team1_id: team1,
-        team2_id: team2,
-        scheduled_at: new Date(scheduled).toISOString(),
-        table_number: tableNumber,
-        status: "scheduled",
-      })
-      .select("id,phase,group_id,team1_id,team2_id,team1_score,team2_score,scheduled_at,table_number,status")
-      .single();
+    setBusyAction("add-match");
+    const { data, error } = await supabase.from("matches").insert({
+      tournament_id: tournament.id,
+      phase,
+      group_id: phase === "group" ? groupId : null,
+      team1_id: team1,
+      team2_id: team2,
+      scheduled_at: new Date(scheduled).toISOString(),
+      table_number: tableNumber,
+      status: "scheduled",
+    }).select("id,phase,group_id,team1_id,team2_id,team1_score,team2_score,scheduled_at,table_number,status").single();
 
     setMessage(error ? error.message : "Spiel angelegt.");
     if (!error && data) {
       setMatches((current) => [...current, data]);
       event.currentTarget.reset();
-      setMatchPhase("group");
+      setMatchPhase("group"); setMatchGroupId(""); setTeam1Id(""); setTeam2Id("");
     }
     setBusyAction(null);
   }
@@ -155,25 +140,11 @@ export default function AdminPage() {
     const score2 = score2Raw === "" ? null : Number(score2Raw);
     const status = String(data.get("status"));
     const tableNumber = String(data.get("table_number")).trim();
-
     if (!tableNumber || !status) { setMessage("Tisch und Status sind Pflichtfelder."); return; }
-    if (status === "finished" && (score1 === null || score2 === null)) {
-      setMessage("Bei einem beendeten Spiel müssen beide Resultate eingetragen sein.");
-      return;
-    }
+    if (status === "finished" && (score1 === null || score2 === null)) { setMessage("Bei einem beendeten Spiel müssen beide Resultate eingetragen sein."); return; }
     setBusyAction(`save-match-${match.id}`);
-
-    const winnerId = status === "finished" && score1 !== null && score2 !== null
-      ? (score1 > score2 ? match.team1_id : score2 > score1 ? match.team2_id : null)
-      : null;
-
-    const { data: updated, error } = await supabase
-      .from("matches")
-      .update({ team1_score: score1, team2_score: score2, status, winner_id: winnerId, table_number: tableNumber })
-      .eq("id", match.id)
-      .select("id,phase,group_id,team1_id,team2_id,team1_score,team2_score,scheduled_at,table_number,status")
-      .single();
-
+    const winnerId = status === "finished" && score1 !== null && score2 !== null ? (score1 > score2 ? match.team1_id : score2 > score1 ? match.team2_id : null) : null;
+    const { data: updated, error } = await supabase.from("matches").update({ team1_score: score1, team2_score: score2, status, winner_id: winnerId, table_number: tableNumber }).eq("id", match.id).select("id,phase,group_id,team1_id,team2_id,team1_score,team2_score,scheduled_at,table_number,status").single();
     setMessage(error ? error.message : "Spiel aktualisiert.");
     if (!error && updated) setMatches((current) => current.map((item) => item.id === match.id ? updated : item));
     setBusyAction(null);
@@ -203,6 +174,7 @@ export default function AdminPage() {
   const teamName = (id: string | null) => teams.find((team) => team.id === id)?.name ?? "Noch offen";
   const groupName = (id: string | null) => groups.find((group) => group.id === id)?.name ?? "–";
   const sortedMatches = useMemo(() => [...matches].sort((a, b) => (a.scheduled_at ?? "9999").localeCompare(b.scheduled_at ?? "9999")), [matches]);
+  const availableTeams = useMemo(() => matchPhase === "group" ? (matchGroupId ? teams.filter((team) => team.group_id === matchGroupId) : []) : teams, [matchPhase, matchGroupId, teams]);
   const busy = (key: string) => busyAction === key;
 
   if (!session) {
@@ -225,9 +197,12 @@ export default function AdminPage() {
 
       <form className="form-card" onSubmit={addMatch}>
         <h2>Spiel anlegen</h2>
-        <label>Phase *<select name="phase" value={matchPhase} required onChange={(event) => setMatchPhase(event.target.value)}><option value="group">Gruppenphase</option><option value="quarterfinal">Viertelfinale</option><option value="semifinal">Halbfinale</option><option value="third_place">Platz 3</option><option value="final">Finale</option></select></label>
-        <label>Gruppe {matchPhase === "group" ? "*" : ""}<select name="group_id" required={matchPhase === "group"} disabled={matchPhase !== "group"}><option value="">{matchPhase === "group" ? "Gruppe wählen" : "Keine / K.-o."}</option>{groups.map((group) => <option value={group.id} key={group.id}>{group.name}</option>)}</select></label>
-        <div className="two-cols"><label>Team 1 *<select name="team1_id" required><option value="">Team wählen</option>{teams.map((team) => <option value={team.id} key={team.id}>{team.name}</option>)}</select></label><label>Team 2 *<select name="team2_id" required><option value="">Team wählen</option>{teams.map((team) => <option value={team.id} key={team.id}>{team.name}</option>)}</select></label></div>
+        <label>Phase *<select name="phase" value={matchPhase} required onChange={(event) => { const next = event.target.value; setMatchPhase(next); setMatchGroupId(""); setTeam1Id(""); setTeam2Id(""); }}><option value="group">Gruppenphase</option><option value="quarterfinal">Viertelfinale</option><option value="semifinal">Halbfinale</option><option value="third_place">Platz 3</option><option value="final">Finale</option></select></label>
+        {matchPhase === "group" ? <label>Gruppe *<select name="group_id" value={matchGroupId} required onChange={(event) => { setMatchGroupId(event.target.value); setTeam1Id(""); setTeam2Id(""); }}><option value="">Gruppe wählen</option>{groups.map((group) => <option value={group.id} key={group.id}>{group.name}</option>)}</select></label> : null}
+        <div className="two-cols">
+          <label>Team 1 *<select name="team1_id" value={team1Id} required disabled={matchPhase === "group" && !matchGroupId} onChange={(event) => setTeam1Id(event.target.value)}><option value="">{matchPhase === "group" && !matchGroupId ? "Zuerst Gruppe wählen" : "Team wählen"}</option>{availableTeams.map((team) => <option value={team.id} key={team.id}>{team.name}</option>)}</select></label>
+          <label>Team 2 *<select name="team2_id" value={team2Id} required disabled={matchPhase === "group" && !matchGroupId} onChange={(event) => setTeam2Id(event.target.value)}><option value="">{matchPhase === "group" && !matchGroupId ? "Zuerst Gruppe wählen" : "Team wählen"}</option>{availableTeams.map((team) => <option value={team.id} key={team.id}>{team.name}</option>)}</select></label>
+        </div>
         <div className="two-cols"><label>Zeit *<input name="scheduled_at" type="datetime-local" required /></label><label>Tisch *<input name="table_number" required placeholder="1" /></label></div>
         <button type="submit" disabled={busy("add-match")} className={busy("add-match") ? "is-loading" : ""}>{busy("add-match") ? "Spiel wird gespeichert…" : "Spiel speichern"}</button>
       </form>
