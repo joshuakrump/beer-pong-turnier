@@ -10,6 +10,8 @@ type Group = { id: string; name: string };
 type Team = { id: string; name: string; group_id: string | null; manual_rank_override: number | null };
 type Match = { id: string; phase: string; group_id: string | null; team1_id: string | null; team2_id: string | null; team1_score: number | null; team2_score: number | null; scheduled_at: string | null; table_number: string | null; status: string };
 
+type BusyAction = string | null;
+
 export default function AdminPage() {
   const [session, setSession] = useState<any>(null);
   const [tournament, setTournament] = useState<any>(null);
@@ -19,6 +21,7 @@ export default function AdminPage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [matchPhase, setMatchPhase] = useState("group");
+  const [busyAction, setBusyAction] = useState<BusyAction>(null);
 
   async function loadData() {
     setLoading(true);
@@ -58,11 +61,12 @@ export default function AdminPage() {
   }, []);
 
   async function login(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setMessage("");
+    event.preventDefault(); setMessage(""); setBusyAction("login");
     const form = new FormData(event.currentTarget);
     const email = String(form.get("email")); const password = String(form.get("password"));
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setMessage(error ? error.message : "Eingeloggt.");
+    setBusyAction(null);
   }
 
   async function addTeam(event: FormEvent<HTMLFormElement>) {
@@ -71,6 +75,7 @@ export default function AdminPage() {
     const name = String(form.get("name")).trim();
     const groupId = String(form.get("group_id"));
     if (!name || !groupId) { setMessage("Bitte Teamname und Gruppe ausfüllen."); return; }
+    setBusyAction("add-team");
 
     const { data, error } = await supabase
       .from("teams")
@@ -83,6 +88,7 @@ export default function AdminPage() {
       setTeams((current) => [...current, data].sort((a, b) => a.name.localeCompare(b.name, "de")));
       event.currentTarget.reset();
     }
+    setBusyAction(null);
   }
 
   async function deleteTeam(team: Team) {
@@ -92,10 +98,12 @@ export default function AdminPage() {
       return;
     }
     if (!window.confirm(`Team \"${team.name}\" wirklich löschen?`)) return;
+    setBusyAction(`delete-team-${team.id}`);
 
     const { error } = await supabase.from("teams").delete().eq("id", team.id);
     setMessage(error ? error.message : "Team gelöscht.");
     if (!error) setTeams((current) => current.filter((item) => item.id !== team.id));
+    setBusyAction(null);
   }
 
   async function addMatch(event: FormEvent<HTMLFormElement>) {
@@ -113,6 +121,7 @@ export default function AdminPage() {
       return;
     }
     if (team1 === team2) { setMessage("Ein Team kann nicht gegen sich selbst spielen."); return; }
+    setBusyAction("add-match");
 
     const { data, error } = await supabase
       .from("matches")
@@ -135,6 +144,7 @@ export default function AdminPage() {
       event.currentTarget.reset();
       setMatchPhase("group");
     }
+    setBusyAction(null);
   }
 
   async function saveMatch(match: Match, form: HTMLFormElement) {
@@ -151,6 +161,7 @@ export default function AdminPage() {
       setMessage("Bei einem beendeten Spiel müssen beide Resultate eingetragen sein.");
       return;
     }
+    setBusyAction(`save-match-${match.id}`);
 
     const winnerId = status === "finished" && score1 !== null && score2 !== null
       ? (score1 > score2 ? match.team1_id : score2 > score1 ? match.team2_id : null)
@@ -165,45 +176,51 @@ export default function AdminPage() {
 
     setMessage(error ? error.message : "Spiel aktualisiert.");
     if (!error && updated) setMatches((current) => current.map((item) => item.id === match.id ? updated : item));
+    setBusyAction(null);
   }
 
   async function deleteMatch(match: Match) {
     const label = `${teamName(match.team1_id)} vs. ${teamName(match.team2_id)}`;
     if (!window.confirm(`Spiel \"${label}\" wirklich löschen?`)) return;
+    setBusyAction(`delete-match-${match.id}`);
     const { error } = await supabase.from("matches").delete().eq("id", match.id);
     setMessage(error ? error.message : "Spiel gelöscht.");
     if (!error) setMatches((current) => current.filter((item) => item.id !== match.id));
+    setBusyAction(null);
   }
 
   async function toggleKnockout() {
     if (!tournament) return;
+    setBusyAction("toggle-knockout");
     const next = !tournament.show_knockout;
     const changes = { show_knockout: next, current_phase: next ? "quarterfinal" : "group", status: next ? "knockout" : "group_stage" };
     const { error } = await supabase.from("tournaments").update(changes).eq("id", tournament.id);
     setMessage(error ? error.message : next ? "Finalrunde freigeschaltet." : "Finalrunde ausgeblendet.");
     if (!error) setTournament((current: any) => ({ ...current, ...changes }));
+    setBusyAction(null);
   }
 
   const teamName = (id: string | null) => teams.find((team) => team.id === id)?.name ?? "Noch offen";
   const groupName = (id: string | null) => groups.find((group) => group.id === id)?.name ?? "–";
   const sortedMatches = useMemo(() => [...matches].sort((a, b) => (a.scheduled_at ?? "9999").localeCompare(b.scheduled_at ?? "9999")), [matches]);
+  const busy = (key: string) => busyAction === key;
 
   if (!session) {
-    return <main className="content admin-shell"><div className="admin-heading"><div><p className="eyebrow">ADMIN</p><h1>Turnierverwaltung</h1></div><Link href="/" className="button-link secondary-link">Zur Webseite</Link></div><div className="admin-login single-login"><form onSubmit={login} className="form-card"><h2>Einloggen</h2><p className="muted">Nur für die Turnierleitung.</p><label>E-Mail<input name="email" type="email" required /></label><label>Passwort<input name="password" type="password" minLength={6} required /></label><button type="submit">Einloggen</button></form></div>{message ? <p className="notice">{message}</p> : null}</main>;
+    return <main className="content admin-shell"><div className="admin-heading"><div><p className="eyebrow">ADMIN</p><h1>Turnierverwaltung</h1></div><Link href="/" className="button-link secondary-link">Zur Webseite</Link></div><div className="admin-login single-login"><form onSubmit={login} className="form-card"><h2>Einloggen</h2><p className="muted">Nur für die Turnierleitung.</p><label>E-Mail<input name="email" type="email" required /></label><label>Passwort<input name="password" type="password" minLength={6} required /></label><button type="submit" disabled={busy("login")} className={busy("login") ? "is-loading" : ""}>{busy("login") ? "Einloggen…" : "Einloggen"}</button></form></div>{message ? <p className="notice">{message}</p> : null}</main>;
   }
 
   if (loading) return <main className="content"><p>Lade Adminbereich…</p></main>;
 
   return <main className="content admin-shell">
-    <div className="admin-heading"><div><p className="eyebrow">ADMIN</p><h1>{tournament?.name ?? "Turnierverwaltung"}</h1></div><div className="admin-actions"><Link href="/" className="button-link secondary-link">Zur Webseite</Link><button onClick={toggleKnockout}>{tournament?.show_knockout ? "Finalrunde ausblenden" : "Finalrunde freischalten"}</button><button className="secondary" onClick={() => supabase.auth.signOut()}>Abmelden</button></div></div>
-    {message ? <p className="notice">{message}</p> : null}
+    <div className="admin-heading"><div><p className="eyebrow">ADMIN</p><h1>{tournament?.name ?? "Turnierverwaltung"}</h1></div><div className="admin-actions"><Link href="/" className="button-link secondary-link">Zur Webseite</Link><button onClick={toggleKnockout} disabled={busy("toggle-knockout")} className={busy("toggle-knockout") ? "is-loading" : ""}>{busy("toggle-knockout") ? "Speichert…" : tournament?.show_knockout ? "Finalrunde ausblenden" : "Finalrunde freischalten"}</button><button className="secondary" onClick={() => supabase.auth.signOut()}>Abmelden</button></div></div>
+    {message ? <p className="notice notice-feedback">{message}</p> : null}
 
     <section className="admin-grid">
       <form className="form-card" onSubmit={addTeam}>
         <h2>Team hinzufügen</h2>
         <label>Teamname *<input name="name" required placeholder="z. B. Cup Kings" /></label>
         <label>Gruppe *<select name="group_id" required><option value="">Gruppe wählen</option>{groups.map((group) => <option value={group.id} key={group.id}>{group.name}</option>)}</select></label>
-        <button type="submit">Team speichern</button>
+        <button type="submit" disabled={busy("add-team")} className={busy("add-team") ? "is-loading" : ""}>{busy("add-team") ? "Speichert…" : "Team speichern"}</button>
       </form>
 
       <form className="form-card" onSubmit={addMatch}>
@@ -212,12 +229,12 @@ export default function AdminPage() {
         <label>Gruppe {matchPhase === "group" ? "*" : ""}<select name="group_id" required={matchPhase === "group"} disabled={matchPhase !== "group"}><option value="">{matchPhase === "group" ? "Gruppe wählen" : "Keine / K.-o."}</option>{groups.map((group) => <option value={group.id} key={group.id}>{group.name}</option>)}</select></label>
         <div className="two-cols"><label>Team 1 *<select name="team1_id" required><option value="">Team wählen</option>{teams.map((team) => <option value={team.id} key={team.id}>{team.name}</option>)}</select></label><label>Team 2 *<select name="team2_id" required><option value="">Team wählen</option>{teams.map((team) => <option value={team.id} key={team.id}>{team.name}</option>)}</select></label></div>
         <div className="two-cols"><label>Zeit *<input name="scheduled_at" type="datetime-local" required /></label><label>Tisch *<input name="table_number" required placeholder="1" /></label></div>
-        <button type="submit">Spiel speichern</button>
+        <button type="submit" disabled={busy("add-match")} className={busy("add-match") ? "is-loading" : ""}>{busy("add-match") ? "Spiel wird gespeichert…" : "Spiel speichern"}</button>
       </form>
     </section>
 
-    <section><h2>Teams</h2><div className="team-list">{teams.map((team) => <div className="team-pill" key={team.id}><strong>{team.name}</strong><span>{groupName(team.group_id)}</span><button type="button" className="team-delete" aria-label={`${team.name} löschen`} title="Team löschen" onClick={() => deleteTeam(team)}>×</button></div>)}</div></section>
+    <section><h2>Teams</h2><div className="team-list">{teams.map((team) => <div className="team-pill" key={team.id}><strong>{team.name}</strong><span>{groupName(team.group_id)}</span><button type="button" className={`team-delete ${busy(`delete-team-${team.id}`) ? "is-loading" : ""}`} disabled={busy(`delete-team-${team.id}`)} aria-label={`${team.name} löschen`} title="Team löschen" onClick={() => deleteTeam(team)}>{busy(`delete-team-${team.id}`) ? "…" : "×"}</button></div>)}</div></section>
 
-    <section><h2>Spiele & Resultate</h2><div className="admin-match-list">{sortedMatches.map((match) => <form className="admin-match" key={match.id} onSubmit={(event) => { event.preventDefault(); saveMatch(match, event.currentTarget); }}><div><small>{match.phase === "group" ? groupName(match.group_id) : match.phase}</small><strong>{teamName(match.team1_id)} vs. {teamName(match.team2_id)}</strong><span>{match.scheduled_at ? new Intl.DateTimeFormat("de-CH", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(match.scheduled_at)) : "Zeit offen"}</span></div><input name="team1_score" type="number" min="0" defaultValue={match.team1_score ?? ""} aria-label="Resultat Team 1" /><span>:</span><input name="team2_score" type="number" min="0" defaultValue={match.team2_score ?? ""} aria-label="Resultat Team 2" /><input name="table_number" required defaultValue={match.table_number ?? ""} placeholder="Tisch" aria-label="Tisch" /><select name="status" required defaultValue={match.status}><option value="scheduled">Geplant</option><option value="live">Läuft</option><option value="finished">Beendet</option></select><div className="match-actions"><button type="submit">Speichern</button><button type="button" className="danger-button" onClick={() => deleteMatch(match)}>Löschen</button></div></form>)}</div></section>
+    <section><h2>Spiele & Resultate</h2><div className="admin-match-list">{sortedMatches.map((match) => <form className="admin-match" key={match.id} onSubmit={(event) => { event.preventDefault(); saveMatch(match, event.currentTarget); }}><div><small>{match.phase === "group" ? groupName(match.group_id) : match.phase}</small><strong>{teamName(match.team1_id)} vs. {teamName(match.team2_id)}</strong><span>{match.scheduled_at ? new Intl.DateTimeFormat("de-CH", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(match.scheduled_at)) : "Zeit offen"}</span></div><input name="team1_score" type="number" min="0" defaultValue={match.team1_score ?? ""} aria-label="Resultat Team 1" /><span>:</span><input name="team2_score" type="number" min="0" defaultValue={match.team2_score ?? ""} aria-label="Resultat Team 2" /><input name="table_number" required defaultValue={match.table_number ?? ""} placeholder="Tisch" aria-label="Tisch" /><select name="status" required defaultValue={match.status}><option value="scheduled">Geplant</option><option value="live">Läuft</option><option value="finished">Beendet</option></select><div className="match-actions"><button type="submit" disabled={busy(`save-match-${match.id}`)} className={busy(`save-match-${match.id}`) ? "is-loading" : ""}>{busy(`save-match-${match.id}`) ? "Speichert…" : "Speichern"}</button><button type="button" className={`danger-button ${busy(`delete-match-${match.id}`) ? "is-loading" : ""}`} disabled={busy(`delete-match-${match.id}`)} onClick={() => deleteMatch(match)}>{busy(`delete-match-${match.id}`) ? "Löscht…" : "Löschen"}</button></div></form>)}</div></section>
   </main>;
 }
