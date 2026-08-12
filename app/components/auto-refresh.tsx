@@ -19,3 +19,5 @@ export function AutoRefresh({ intervalMs = 5000 }: { intervalMs?: number }) {
 
   return null;
 }
+
+// Deployment trigger: refresh feature verified.
