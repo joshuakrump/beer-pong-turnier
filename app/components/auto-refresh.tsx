@@ -35,4 +35,4 @@ export function AutoRefresh() {
   return null;
 }
 
-// Production deploy trigger for mobile and final-round fixes.
+// Production deploy trigger for final visual polish.
