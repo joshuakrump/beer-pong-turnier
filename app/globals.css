@@ -1,0 +1,68 @@
+:root {
+  color-scheme: dark;
+  --bg: #08120d;
+  --panel: #102019;
+  --text: #f7fff9;
+  --muted: #a9b8af;
+  --accent: #7cff8f;
+}
+
+* { box-sizing: border-box; }
+
+html, body { margin: 0; min-height: 100%; }
+
+body {
+  background: radial-gradient(circle at top, #173824 0%, var(--bg) 48%);
+  color: var(--text);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.page-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px 20px;
+}
+
+.hero { width: min(760px, 100%); }
+
+.eyebrow {
+  color: var(--accent);
+  font-weight: 800;
+  letter-spacing: .22em;
+  margin-bottom: 10px;
+}
+
+h1 {
+  font-size: clamp(3rem, 10vw, 6.5rem);
+  line-height: .9;
+  margin: 0;
+  letter-spacing: -.055em;
+}
+
+.lead {
+  color: var(--muted);
+  font-size: 1.15rem;
+  line-height: 1.6;
+  max-width: 620px;
+  margin: 28px 0;
+}
+
+.status-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  border: 1px solid #244432;
+  border-radius: 18px;
+  padding: 18px 20px;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 18px var(--accent);
+  flex: 0 0 auto;
+}
