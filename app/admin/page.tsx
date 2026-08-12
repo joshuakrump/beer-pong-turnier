@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 
@@ -46,14 +47,6 @@ export default function AdminPage() {
     const email = String(form.get("email")); const password = String(form.get("password"));
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setMessage(error ? error.message : "Eingeloggt.");
-  }
-
-  async function signup(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setMessage("");
-    const form = new FormData(event.currentTarget);
-    const email = String(form.get("email")); const password = String(form.get("password"));
-    const { error } = await supabase.auth.signUp({ email, password });
-    setMessage(error ? error.message : "Konto erstellt. Falls E-Mail-Bestätigung aktiv ist, bestätige zuerst die Mail.");
   }
 
   async function addTeam(event: FormEvent<HTMLFormElement>) {
@@ -104,13 +97,13 @@ export default function AdminPage() {
   const sortedMatches = useMemo(() => [...matches].sort((a, b) => (a.scheduled_at ?? "9999").localeCompare(b.scheduled_at ?? "9999")), [matches]);
 
   if (!session) {
-    return <main className="content admin-shell"><div className="page-heading"><p className="eyebrow">ADMIN</p><h1>Turnierverwaltung</h1></div><div className="admin-login"><form onSubmit={login} className="form-card"><h2>Einloggen</h2><label>E-Mail<input name="email" type="email" required /></label><label>Passwort<input name="password" type="password" minLength={6} required /></label><button type="submit">Einloggen</button></form><form onSubmit={signup} className="form-card"><h2>Erstes Konto erstellen</h2><label>E-Mail<input name="email" type="email" required /></label><label>Passwort<input name="password" type="password" minLength={6} required /></label><button type="submit" className="secondary">Konto erstellen</button></form></div>{message ? <p className="notice">{message}</p> : null}</main>;
+    return <main className="content admin-shell"><div className="admin-heading"><div><p className="eyebrow">ADMIN</p><h1>Turnierverwaltung</h1></div><Link href="/" className="button-link secondary-link">Zur Webseite</Link></div><div className="admin-login single-login"><form onSubmit={login} className="form-card"><h2>Einloggen</h2><p className="muted">Nur für die Turnierleitung.</p><label>E-Mail<input name="email" type="email" required /></label><label>Passwort<input name="password" type="password" minLength={6} required /></label><button type="submit">Einloggen</button></form></div>{message ? <p className="notice">{message}</p> : null}</main>;
   }
 
   if (loading) return <main className="content"><p>Lade Adminbereich…</p></main>;
 
   return <main className="content admin-shell">
-    <div className="admin-heading"><div><p className="eyebrow">ADMIN</p><h1>{tournament?.name ?? "Turnierverwaltung"}</h1></div><div className="admin-actions"><button onClick={toggleKnockout}>{tournament?.show_knockout ? "Finalrunde ausblenden" : "Finalrunde freischalten"}</button><button className="secondary" onClick={() => supabase.auth.signOut()}>Abmelden</button></div></div>
+    <div className="admin-heading"><div><p className="eyebrow">ADMIN</p><h1>{tournament?.name ?? "Turnierverwaltung"}</h1></div><div className="admin-actions"><Link href="/" className="button-link secondary-link">Zur Webseite</Link><button onClick={toggleKnockout}>{tournament?.show_knockout ? "Finalrunde ausblenden" : "Finalrunde freischalten"}</button><button className="secondary" onClick={() => supabase.auth.signOut()}>Abmelden</button></div></div>
     {message ? <p className="notice">{message}</p> : null}
 
     <section className="admin-grid">
