@@ -19,6 +19,7 @@ export async function Navigation() {
         <Link href="/spielplan">Spielplan</Link>
         <Link href="/tabelle">Tabelle</Link>
         {showKnockout ? <Link href="/finalrunde">Finalrunde</Link> : null}
+        <Link href="/admin" className="admin-nav-link">Admin</Link>
       </nav>
     </header>
   );
