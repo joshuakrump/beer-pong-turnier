@@ -85,6 +85,14 @@ export default function AdminPage() {
     setMessage(error ? error.message : "Spiel aktualisiert."); if (!error) await loadData();
   }
 
+  async function deleteMatch(match: Match) {
+    const label = `${teamName(match.team1_id)} vs. ${teamName(match.team2_id)}`;
+    if (!window.confirm(`Spiel \"${label}\" wirklich löschen?`)) return;
+    const { error } = await supabase.from("matches").delete().eq("id", match.id);
+    setMessage(error ? error.message : "Spiel gelöscht.");
+    if (!error) await loadData();
+  }
+
   async function toggleKnockout() {
     if (!tournament) return;
     const next = !tournament.show_knockout;
@@ -113,6 +121,6 @@ export default function AdminPage() {
 
     <section><h2>Teams</h2><div className="team-list">{teams.map((team) => <div className="team-pill" key={team.id}><strong>{team.name}</strong><span>{groupName(team.group_id)}</span></div>)}</div></section>
 
-    <section><h2>Spiele & Resultate</h2><div className="admin-match-list">{sortedMatches.map((match) => <form className="admin-match" key={match.id} onSubmit={(event) => { event.preventDefault(); saveMatch(match, event.currentTarget); }}><div><small>{match.phase === "group" ? groupName(match.group_id) : match.phase}</small><strong>{teamName(match.team1_id)} vs. {teamName(match.team2_id)}</strong><span>{match.scheduled_at ? new Intl.DateTimeFormat("de-CH", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(match.scheduled_at)) : "Zeit offen"}</span></div><input name="team1_score" type="number" min="0" defaultValue={match.team1_score ?? ""} aria-label="Resultat Team 1" /><span>:</span><input name="team2_score" type="number" min="0" defaultValue={match.team2_score ?? ""} aria-label="Resultat Team 2" /><input name="table_number" defaultValue={match.table_number ?? ""} placeholder="Tisch" aria-label="Tisch" /><select name="status" defaultValue={match.status}><option value="scheduled">Geplant</option><option value="live">Läuft</option><option value="finished">Beendet</option></select><button type="submit">Speichern</button></form>)}</div></section>
+    <section><h2>Spiele & Resultate</h2><div className="admin-match-list">{sortedMatches.map((match) => <form className="admin-match" key={match.id} onSubmit={(event) => { event.preventDefault(); saveMatch(match, event.currentTarget); }}><div><small>{match.phase === "group" ? groupName(match.group_id) : match.phase}</small><strong>{teamName(match.team1_id)} vs. {teamName(match.team2_id)}</strong><span>{match.scheduled_at ? new Intl.DateTimeFormat("de-CH", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(match.scheduled_at)) : "Zeit offen"}</span></div><input name="team1_score" type="number" min="0" defaultValue={match.team1_score ?? ""} aria-label="Resultat Team 1" /><span>:</span><input name="team2_score" type="number" min="0" defaultValue={match.team2_score ?? ""} aria-label="Resultat Team 2" /><input name="table_number" defaultValue={match.table_number ?? ""} placeholder="Tisch" aria-label="Tisch" /><select name="status" defaultValue={match.status}><option value="scheduled">Geplant</option><option value="live">Läuft</option><option value="finished">Beendet</option></select><div className="match-actions"><button type="submit">Speichern</button><button type="button" className="danger-button" onClick={() => deleteMatch(match)}>Löschen</button></div></form>)}</div></section>
   </main>;
 }
