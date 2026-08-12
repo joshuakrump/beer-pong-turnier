@@ -5,12 +5,12 @@ export async function Navigation() {
   const supabase = createServerSupabaseClient();
   const { data: tournament } = await supabase
     .from("tournaments")
-    .select("show_knockout,current_phase")
+    .select("show_knockout")
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
-  const showKnockout = Boolean(tournament?.show_knockout) || tournament?.current_phase !== "group";
+  const showKnockout = Boolean(tournament?.show_knockout);
 
   return (
     <header className="topbar">
