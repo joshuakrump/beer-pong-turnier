@@ -20,29 +20,47 @@ export default async function TabellePage() {
 
   return (
     <main className="content">
-      <div className="page-heading"><p className="eyebrow">GRUPPENPHASE</p><h1>Tabelle</h1><p className="muted">Sieg 2 Punkte · Unentschieden 1 · Niederlage 0</p></div>
+      <div className="page-heading">
+        <p className="eyebrow">STANDINGS</p>
+        <h1>Rangliste</h1>
+        <p className="muted">Sieg 2 Punkte · Unentschieden 1 Punkt · Niederlage 0 Punkte. Die ersten vier Teams jeder Gruppe ziehen ins Viertelfinale ein.</p>
+      </div>
+
       <div className="standings-grid">
         {(groups ?? []).map((group: any) => {
           const groupTeams = (teams ?? []).filter((team: any) => team.group_id === group.id);
           const groupMatches = (matches ?? []).filter((match: any) => match.group_id === group.id);
           const rows = calculateStandings(groupTeams, groupMatches);
+          const playedGames = groupMatches.filter((match: any) => match.status === "finished").length;
+
           return (
             <section className="table-card" key={group.id}>
-              <h2>{group.name}</h2>
+              <div className="table-card-heading">
+                <div><p className="section-kicker">GRUPPE</p><h2>{group.name}</h2></div>
+                <span className="table-summary">{playedGames} Spiele beendet</span>
+              </div>
               <div className="table-scroll">
                 <table>
                   <thead><tr><th>#</th><th>Team</th><th>Sp.</th><th>S</th><th>U</th><th>N</th><th>Becher</th><th>Diff.</th><th>Pkt.</th></tr></thead>
                   <tbody>
                     {rows.map((row, index) => (
                       <tr key={row.teamId} className={index < 4 ? "qualified" : ""}>
-                        <td>{index + 1}</td><td><strong>{row.name}</strong></td><td>{row.played}</td><td>{row.wins}</td><td>{row.draws}</td><td>{row.losses}</td><td>{row.scored}:{row.conceded}</td><td>{row.difference > 0 ? `+${row.difference}` : row.difference}</td><td><strong>{row.points}</strong></td>
+                        <td>{index + 1}</td>
+                        <td><strong>{row.name}</strong></td>
+                        <td>{row.played}</td>
+                        <td>{row.wins}</td>
+                        <td>{row.draws}</td>
+                        <td>{row.losses}</td>
+                        <td>{row.scored}:{row.conceded}</td>
+                        <td>{row.difference > 0 ? `+${row.difference}` : row.difference}</td>
+                        <td><strong>{row.points}</strong></td>
                       </tr>
                     ))}
                     {rows.length === 0 ? <tr><td colSpan={9} className="muted">Noch keine Teams in dieser Gruppe.</td></tr> : null}
                   </tbody>
                 </table>
               </div>
-              <p className="table-note">Die ersten 4 Plätze qualifizieren sich für das Viertelfinale.</p>
+              <p className="table-note"><span className="qualification-dot" /> Grün markierte Plätze sind aktuell für das Viertelfinale qualifiziert.</p>
             </section>
           );
         })}
