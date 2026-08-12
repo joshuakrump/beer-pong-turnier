@@ -11,12 +11,12 @@ export default async function FinalrundePage() {
   const supabase = createServerSupabaseClient();
   const { data: tournament } = await supabase
     .from("tournaments")
-    .select("id,show_knockout,current_phase")
+    .select("id,show_knockout")
     .order("created_at", { ascending: false })
     .limit(1)
     .single();
 
-  if (!tournament || (!tournament.show_knockout && tournament.current_phase === "group")) {
+  if (!tournament || !tournament.show_knockout) {
     return <main className="content"><h1>Finalrunde</h1><p className="muted">Die Finalrunde ist noch nicht freigeschaltet.</p></main>;
   }
 
