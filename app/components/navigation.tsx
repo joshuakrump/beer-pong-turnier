@@ -14,12 +14,15 @@ export async function Navigation() {
 
   return (
     <header className="topbar">
-      <Link href="/" className="brand">🍺 BEER PONG</Link>
+      <Link href="/" className="brand" aria-label="Beer Pong Turnier Startseite">
+        <span className="brand-mark">🍺</span>
+        <span className="brand-copy"><strong>BEER PONG</strong><small>TOURNAMENT</small></span>
+      </Link>
       <nav className="nav-links" aria-label="Hauptnavigation">
-        <Link href="/spielplan">Spielplan</Link>
-        <Link href="/tabelle">Tabelle</Link>
-        {showKnockout ? <Link href="/finalrunde">Finalrunde</Link> : null}
-        <Link href="/admin" className="admin-nav-link">Admin</Link>
+        <Link href="/spielplan"><span className="nav-icon">◷</span><span>Spielplan</span></Link>
+        <Link href="/tabelle"><span className="nav-icon">▤</span><span>Tabelle</span></Link>
+        {showKnockout ? <Link href="/finalrunde"><span className="nav-icon">♛</span><span>Finalrunde</span></Link> : null}
+        <Link href="/admin" className="admin-nav-link"><span className="nav-icon">⚙</span><span>Admin</span></Link>
       </nav>
     </header>
   );
