@@ -19,6 +19,7 @@ export async function Navigation() {
         <span className="brand-copy"><strong>BEER PONG</strong><small>TOURNAMENT</small></span>
       </Link>
       <nav className="nav-links" aria-label="Hauptnavigation">
+        <Link href="/" className="mobile-home-link"><span className="nav-icon">⌂</span><span>Start</span></Link>
         <Link href="/spielplan"><span className="nav-icon">◷</span><span>Spielplan</span></Link>
         <Link href="/tabelle"><span className="nav-icon">▤</span><span>Tabelle</span></Link>
         {showKnockout ? <Link href="/finalrunde"><span className="nav-icon">♛</span><span>Finalrunde</span></Link> : null}
