@@ -15,7 +15,7 @@ export default async function SpielplanPage() {
   const supabase = createServerSupabaseClient();
   const { data: tournament } = await supabase
     .from("tournaments")
-    .select("id,current_phase,show_knockout")
+    .select("id,show_knockout")
     .order("created_at", { ascending: false })
     .limit(1)
     .single();
@@ -29,9 +29,7 @@ export default async function SpielplanPage() {
     .order("scheduled_at", { ascending: true, nullsFirst: false })
     .order("sort_order", { ascending: true });
 
-  const visible = (matches ?? []).filter((match: any) =>
-    tournament.show_knockout || tournament.current_phase !== "group" ? true : match.phase === "group",
-  );
+  const visible = (matches ?? []).filter((match: any) => tournament.show_knockout || match.phase === "group");
   const live = visible.filter((match: any) => match.status === "live");
   const upcoming = visible.filter((match: any) => match.status === "scheduled");
   const finished = visible.filter((match: any) => match.status === "finished").reverse();
