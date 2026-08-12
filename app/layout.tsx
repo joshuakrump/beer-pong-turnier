@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./theme.css";
 import { Navigation } from "./components/navigation";
 import { AutoRefresh } from "./components/auto-refresh";
 
@@ -7,8 +8,8 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export const metadata: Metadata = {
-  title: "Beer Pong Turnier",
-  description: "Spielplan, Gruppenwertung und Finalrunde für das Beer-Pong-Turnier.",
+  title: "Beer Pong Tournament",
+  description: "Live-Spielplan, Rangliste und Finalrunde für das Beer-Pong-Turnier.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
